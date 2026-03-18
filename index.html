@@ -2,149 +2,192 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Dash</title>
+    <title>GD Knockoff Engine</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; }
-        canvas { display: block; background: #222; margin: 0 auto; border-bottom: 5px solid #444; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; text-shadow: 2px 2px #000; }
+        body { margin: 0; background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        canvas { display: block; background: #222; border-bottom: 4px solid #333; cursor: crosshair; }
+        #ui-overlay { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+        .menu-btn { padding: 10px 20px; background: #444; color: white; border: none; cursor: pointer; margin: 5px; pointer-events: auto; }
+        .menu-btn:hover { background: #666; }
+        #editor-panel { position: absolute; bottom: 60px; left: 10px; background: rgba(0,0,0,0.8); padding: 10px; display: none; }
+        #main-menu { position: absolute; inset: 0; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
+        .level-card { width: 300px; padding: 15px; background: #333; margin: 5px; text-align: center; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="ui">Score: 0</div>
+
+    <div id="main-menu">
+        <h1>JS DASH</h1>
+        <div id="level-list"></div>
+        <button class="menu-btn" onclick="openEditor()">Level Editor</button>
+    </div>
+
+    <div id="ui-overlay">
+        <div id="stats">Score: 0</div>
+        <button class="menu-btn" onclick="returnToMenu()">Menu</button>
+        <div id="editor-panel">
+            <button class="menu-btn" onclick="currentBrush = 'block'">Block</button>
+            <button class="menu-btn" onclick="currentBrush = 'spike'">Spike</button>
+            <button class="menu-btn" onclick="currentBrush = 'portal'">Ship Portal</button>
+            <button class="menu-btn" onclick="saveLevel()">Save & Upload (ID)</button>
+        </div>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const scoreElement = document.getElementById('ui');
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = 400;
 
-        canvas.width = 800;
-        canvas.height = 400;
+// Game State
+let mode = 'MENU'; // MENU, PLAY, EDIT
+let currentLevel = [];
+let currentBrush = 'block';
+const GRAVITY = 0.6;
+const SHIP_GRAVITY = 0.3;
+const GROUND_Y = 350;
 
-        // Game Constants
-        const GRAVITY = 0.6;
-        const JUMP_FORCE = -10;
-        const GROUND_Y = canvas.height - 50;
+let player = { x: 50, y: 0, w: 30, h: 30, dy: 0, mode: 'cube', rot: 0 };
+let camX = 0;
 
-        let score = 0;
-        let gameActive = true;
+// --- Level Storage Logic ---
+function saveLevel() {
+    const id = prompt("Enter Level ID (Number):", "1");
+    if(!id) return;
+    
+    let levels = JSON.parse(localStorage.getItem('gd_levels') || "{}");
+    levels[id] = currentLevel;
+    localStorage.setItem('gd_levels', JSON.stringify(levels));
+    alert("Level Uploaded to Database!");
+    returnToMenu();
+}
 
-        const player = {
-            x: 100,
-            y: GROUND_Y - 30,
-            w: 30,
-            h: 30,
-            dy: 0,
-            rotation: 0,
-            jump() {
-                if (this.y === GROUND_Y - this.h) {
-                    this.dy = JUMP_FORCE;
-                }
-            },
-            update() {
-                this.dy += GRAVITY;
-                this.y += this.dy;
+function loadLevelList() {
+    const list = document.getElementById('level-list');
+    list.innerHTML = '';
+    const levels = JSON.parse(localStorage.getItem('gd_levels') || "{}");
+    
+    // Sort levels by ID number
+    Object.keys(levels).sort((a,b) => a-b).forEach(id => {
+        const div = document.createElement('div');
+        div.className = 'level-card';
+        div.innerText = `Level ${id}`;
+        div.onclick = () => startLevel(levels[id]);
+        list.appendChild(div);
+    });
+}
 
-                // Ground collision
-                if (this.y > GROUND_Y - this.h) {
-                    this.y = GROUND_Y - this.h;
-                    this.dy = 0;
-                }
+// --- Engine Core ---
+function startLevel(levelData) {
+    currentLevel = levelData;
+    player.x = 50; player.y = GROUND_Y - 30; player.dy = 0; player.mode = 'cube';
+    camX = 0;
+    mode = 'PLAY';
+    document.getElementById('main-menu').style.display = 'none';
+}
 
-                // Rotation effect when jumping
-                if (this.y < GROUND_Y - this.h) {
-                    this.rotation += 5;
-                } else {
-                    // Snap to grid-like rotation on ground
-                    this.rotation = Math.round(this.rotation / 90) * 90;
-                }
-            },
-            draw() {
-                ctx.save();
-                ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
-                ctx.rotate(this.rotation * Math.PI / 180);
-                ctx.fillStyle = '#00ffcc';
-                ctx.fillRect(-this.w / 2, -this.h / 2, this.w, this.h);
-                ctx.strokeStyle = 'white';
-                ctx.strokeRect(-this.w / 2, -this.h / 2, this.w, this.h);
-                ctx.restore();
-            }
-        };
+function openEditor() {
+    mode = 'EDIT';
+    currentLevel = [];
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('editor-panel').style.display = 'block';
+}
 
-        const obstacles = [];
-        function spawnObstacle() {
-            if (Math.random() < 0.02) {
-                obstacles.push({
-                    x: canvas.width,
-                    y: GROUND_Y - 30,
-                    w: 30,
-                    h: 30,
-                    speed: 6
-                });
+function returnToMenu() {
+    mode = 'MENU';
+    document.getElementById('main-menu').style.display = 'flex';
+    document.getElementById('editor-panel').style.display = 'none';
+    loadLevelList();
+}
+
+// --- Interaction ---
+canvas.addEventListener('mousedown', (e) => {
+    if (mode !== 'EDIT') {
+        if(player.mode === 'cube') {
+            if (player.y >= GROUND_Y - player.h) player.dy = -12;
+        } else {
+            player.dy = -6; // Ship Fly
+        }
+        return;
+    }
+    // Editor Placement
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left + camX;
+    const clickY = e.clientY - rect.top;
+    const gridX = Math.floor(clickX / 40) * 40;
+    const gridY = Math.floor(clickY / 40) * 40;
+    currentLevel.push({ x: gridX, y: gridY, type: currentBrush });
+});
+
+// --- Main Loop ---
+function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw Ground
+    ctx.fillStyle = '#333';
+    ctx.fillRect(0, GROUND_Y, canvas.width, 100);
+
+    if (mode === 'PLAY' || mode === 'EDIT') {
+        if (mode === 'PLAY') {
+            camX += 5;
+            player.x += 5;
+
+            // Physics
+            let g = player.mode === 'cube' ? GRAVITY : SHIP_GRAVITY;
+            player.dy += g;
+            player.y += player.dy;
+
+            if (player.y > GROUND_Y - player.h) {
+                player.y = GROUND_Y - player.h;
+                player.dy = 0;
             }
         }
 
-        function updateObstacles() {
-            for (let i = obstacles.length - 1; i >= 0; i--) {
-                const o = obstacles[i];
-                o.x -= o.speed;
+        // Draw Player
+        ctx.save();
+        ctx.translate(player.x - camX + 15, player.y + 15);
+        if(player.mode === 'cube') ctx.rotate((player.x % 360) * Math.PI / 180);
+        ctx.fillStyle = player.mode === 'cube' ? '#00f' : '#f0f';
+        ctx.fillRect(-15, -15, 30, 30);
+        ctx.restore();
 
-                // Collision Detection
-                if (player.x < o.x + o.w &&
-                    player.x + player.w > o.x &&
-                    player.y < o.y + o.h &&
-                    player.y + player.h > o.y) {
-                    resetGame();
-                }
-
-                if (o.x + o.w < 0) {
-                    obstacles.splice(i, 1);
-                    score++;
-                    scoreElement.innerText = `Score: ${score}`;
-                }
-            }
-        }
-
-        function resetGame() {
-            score = 0;
-            scoreElement.innerText = `Score: 0`;
-            player.y = GROUND_Y - player.h;
-            player.dy = 0;
-            obstacles.length = 0;
-        }
-
-        function draw() {
-            // Background & Ground
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#444';
-            ctx.fillRect(0, GROUND_Y, canvas.width, 50);
-
-            player.update();
-            player.draw();
-
-            spawnObstacle();
-            updateObstacles();
-
-            obstacles.forEach(o => {
-                ctx.fillStyle = '#ff4444';
+        // Draw Level Objects
+        currentLevel.forEach(obj => {
+            const screenX = obj.x - camX;
+            if (obj.type === 'block') {
+                ctx.fillStyle = '#aaa';
+                ctx.fillRect(screenX, obj.y, 40, 40);
+                checkCollision(obj);
+            } else if (obj.type === 'spike') {
+                ctx.fillStyle = '#f44';
                 ctx.beginPath();
-                ctx.moveTo(o.x, o.y + o.h);
-                ctx.lineTo(o.x + o.w / 2, o.y);
-                ctx.lineTo(o.x + o.w, o.y + o.h);
+                ctx.moveTo(screenX, obj.y + 40);
+                ctx.lineTo(screenX + 20, obj.y);
+                ctx.lineTo(screenX + 40, obj.y + 40);
                 ctx.fill();
-            });
-
-            requestAnimationFrame(draw);
-        }
-
-        // Controls
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' || e.code === 'ArrowUp') player.jump();
+                checkCollision(obj);
+            } else if (obj.type === 'portal') {
+                ctx.fillStyle = '#0f0';
+                ctx.fillRect(screenX, obj.y, 20, 80);
+                if (mode === 'PLAY' && player.x > obj.x && player.x < obj.x + 20) player.mode = 'ship';
+            }
         });
-        window.addEventListener('touchstart', () => player.jump());
+    }
+    requestAnimationFrame(update);
+}
 
-        draw();
-    </script>
+function checkCollision(obj) {
+    if (mode !== 'PLAY') return;
+    if (player.x < obj.x + 30 && player.x + 30 > obj.x &&
+        player.y < obj.y + 30 && player.y + 30 > obj.y) {
+        startLevel(currentLevel); // Reset on death
+    }
+}
+
+loadLevelList();
+update();
+</script>
 </body>
 </html>
