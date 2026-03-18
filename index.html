@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS Dash</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; }
+        canvas { display: block; background: #222; margin: 0 auto; border-bottom: 5px solid #444; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; text-shadow: 2px 2px #000; }
+    </style>
+</head>
+<body>
+    <div id="ui">Score: 0</div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('ui');
+
+        canvas.width = 800;
+        canvas.height = 400;
+
+        // Game Constants
+        const GRAVITY = 0.6;
+        const JUMP_FORCE = -10;
+        const GROUND_Y = canvas.height - 50;
+
+        let score = 0;
+        let gameActive = true;
+
+        const player = {
+            x: 100,
+            y: GROUND_Y - 30,
+            w: 30,
+            h: 30,
+            dy: 0,
+            rotation: 0,
+            jump() {
+                if (this.y === GROUND_Y - this.h) {
+                    this.dy = JUMP_FORCE;
+                }
+            },
+            update() {
+                this.dy += GRAVITY;
+                this.y += this.dy;
+
+                // Ground collision
+                if (this.y > GROUND_Y - this.h) {
+                    this.y = GROUND_Y - this.h;
+                    this.dy = 0;
+                }
+
+                // Rotation effect when jumping
+                if (this.y < GROUND_Y - this.h) {
+                    this.rotation += 5;
+                } else {
+                    // Snap to grid-like rotation on ground
+                    this.rotation = Math.round(this.rotation / 90) * 90;
+                }
+            },
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
+                ctx.rotate(this.rotation * Math.PI / 180);
+                ctx.fillStyle = '#00ffcc';
+                ctx.fillRect(-this.w / 2, -this.h / 2, this.w, this.h);
+                ctx.strokeStyle = 'white';
+                ctx.strokeRect(-this.w / 2, -this.h / 2, this.w, this.h);
+                ctx.restore();
+            }
+        };
+
+        const obstacles = [];
+        function spawnObstacle() {
+            if (Math.random() < 0.02) {
+                obstacles.push({
+                    x: canvas.width,
+                    y: GROUND_Y - 30,
+                    w: 30,
+                    h: 30,
+                    speed: 6
+                });
+            }
+        }
+
+        function updateObstacles() {
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const o = obstacles[i];
+                o.x -= o.speed;
+
+                // Collision Detection
+                if (player.x < o.x + o.w &&
+                    player.x + player.w > o.x &&
+                    player.y < o.y + o.h &&
+                    player.y + player.h > o.y) {
+                    resetGame();
+                }
+
+                if (o.x + o.w < 0) {
+                    obstacles.splice(i, 1);
+                    score++;
+                    scoreElement.innerText = `Score: ${score}`;
+                }
+            }
+        }
+
+        function resetGame() {
+            score = 0;
+            scoreElement.innerText = `Score: 0`;
+            player.y = GROUND_Y - player.h;
+            player.dy = 0;
+            obstacles.length = 0;
+        }
+
+        function draw() {
+            // Background & Ground
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#444';
+            ctx.fillRect(0, GROUND_Y, canvas.width, 50);
+
+            player.update();
+            player.draw();
+
+            spawnObstacle();
+            updateObstacles();
+
+            obstacles.forEach(o => {
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.moveTo(o.x, o.y + o.h);
+                ctx.lineTo(o.x + o.w / 2, o.y);
+                ctx.lineTo(o.x + o.w, o.y + o.h);
+                ctx.fill();
+            });
+
+            requestAnimationFrame(draw);
+        }
+
+        // Controls
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') player.jump();
+        });
+        window.addEventListener('touchstart', () => player.jump());
+
+        draw();
+    </script>
+</body>
+</html>
