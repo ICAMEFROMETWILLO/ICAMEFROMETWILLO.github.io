@@ -3,71 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GD Engine</title>
+    <title>GD Engine Pro</title>
     <style>
-        body { margin: 0; background: #0a0a0a; color: white; font-family: 'Segoe UI', Tahoma, sans-serif; overflow: hidden; user-select: none; }
+        body { margin: 0; background: #0a0a0a; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; user-select: none; }
         canvas { display: block; background: #111; border-bottom: 4px solid #222; }
-        
-        /* Main Menus */
         .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); z-index: 100; }
         .hidden { display: none !important; }
-        
-        /* Level List Styles */
-        #level-sender { width: 400px; height: 300px; overflow-y: auto; background: #222; padding: 20px; border: 2px solid #444; }
-        .lvl-item { background: #333; padding: 10px; margin-bottom: 5px; cursor: pointer; display: flex; justify-content: space-between; }
+        #level-sender { width: 400px; height: 300px; overflow-y: auto; background: #222; padding: 20px; border: 2px solid #444; border-radius: 8px; }
+        .lvl-item { background: #333; padding: 12px; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-radius: 4px; }
         .lvl-item:hover { background: #444; }
-
-        /* Editor Tabs */
-        #editor-gui { position: absolute; bottom: 0; left: 0; right: 0; height: 120px; background: rgba(20,20,20,0.9); display: flex; flex-direction: column; border-top: 2px solid #555; }
+        #editor-gui { position: absolute; bottom: 0; left: 0; right: 0; height: 120px; background: rgba(20,20,20,0.95); display: flex; flex-direction: column; border-top: 2px solid #555; }
         .tabs { display: flex; background: #111; }
-        .tab { padding: 8px 20px; cursor: pointer; background: #222; border: 1px solid #333; }
-        .tab.active { background: #444; border-bottom: none; }
-        .tab-content { flex: 1; display: flex; align-items: center; padding: 10px; gap: 10px; }
-        
-        /* Buttons */
-        .btn { padding: 10px 15px; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; }
-        .btn-pause { position: absolute; top: 10px; right: 10px; }
-        .btn-blue { background: #007bff; }
-        .obj-btn { width: 40px; height: 40px; background: #444; border: 1px solid #666; cursor: pointer; }
+        .tab { padding: 10px 25px; cursor: pointer; background: #222; border: 1px solid #333; transition: 0.2s; }
+        .tab.active { background: #444; border-bottom: 2px solid #00fbff; }
+        .tab-content { flex: 1; display: flex; align-items: center; padding: 10px; gap: 15px; }
+        .btn { padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; transition: 0.2s; }
+        .btn-green { background: #28a745; color: white; }
+        .btn-blue { background: #007bff; color: white; }
+        .btn-pause { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.2); color: white; }
+        .obj-btn { width: 50px; height: 50px; background: #444; border: 2px solid #666; cursor: pointer; position: relative; }
+        .obj-btn:hover { border-color: #00fbff; }
+        input { background: #333; color: white; border: 1px solid #555; padding: 10px; border-radius: 4px; width: 200px; }
     </style>
 </head>
 <body>
 
     <div id="main-menu" class="overlay">
-        <h1>GEOMETRY DASH CLONE</h1>
+        <h1 style="letter-spacing: 5px; color: #00fbff;">DASH ENGINE</h1>
         <div id="level-sender"></div>
-        <div style="margin-top: 20px;">
-            <button class="btn btn-blue" onclick="initEditor()">Create New Level</button>
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <button class="btn btn-blue" onclick="initEditor()">Level Editor</button>
         </div>
     </div>
 
     <div id="pause-menu" class="overlay hidden">
-        <h2>Editor Paused</h2>
-        <input type="text" id="lvl-name" placeholder="Level Name" style="padding: 10px; margin: 10px;">
-        <input type="number" id="lvl-id" placeholder="Level ID" style="padding: 10px; margin: 10px;">
-        <button class="btn" onclick="saveAndUpload()">Save & Upload (.gdlvl)</button>
-        <button class="btn btn-blue" style="margin-top: 10px;" onclick="togglePause(false)">Resume</button>
-        <button class="btn" style="background: #dc3545; margin-top: 10px;" onclick="location.reload()">Exit to Menu</button>
+        <h2 style="color: #ffcc00;">PAUSED</h2>
+        <div style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
+            <input type="text" id="lvl-name" placeholder="Level Name">
+            <input type="number" id="lvl-id" placeholder="Level ID (1, 2, 3...)">
+            <button class="btn btn-green" onclick="saveAndUpload()">UPLOAD LEVEL</button>
+            <button class="btn btn-blue" onclick="togglePause(false)">RESUME EDITING</button>
+            <button class="btn" style="background: #dc3545; color: white;" onclick="location.reload()">EXIT TO MENU</button>
+        </div>
     </div>
 
-    <button id="pause-trigger" class="btn btn-pause hidden" onclick="togglePause(true)">II</button>
+    <button id="pause-trigger" class="btn btn-pause hidden" onclick="togglePause(true)">PAUSE</button>
 
     <div id="editor-gui" class="hidden">
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('build')">Build</div>
-            <div class="tab" onclick="switchTab('edit')">Edit</div>
-            <div class="tab" onclick="switchTab('delete')">Delete</div>
+            <div class="tab active" id="tab-build" onclick="switchTab('build')">BUILD</div>
+            <div class="tab" id="tab-delete" onclick="switchTab('delete')">DELETE</div>
         </div>
         <div id="build-content" class="tab-content">
-            <button class="obj-btn" onclick="brush='block'" style="background:#aaa;"></button>
-            <button class="obj-btn" onclick="brush='spike'" style="background:#f44; clip-path: polygon(50% 0%, 0% 100%, 100% 100%);"></button>
-            <button class="obj-btn" onclick="brush='portal'" style="background:#0f0;"></button>
-        </div>
-        <div id="edit-content" class="tab-content hidden">
-            <span>Select an object to move it (WIP)</span>
+            <div class="obj-btn" onclick="brush='block'" style="background:#888; border: 2px solid white;"></div>
+            <div class="obj-btn" onclick="brush='spike'" style="background:#f44; clip-path: polygon(50% 0%, 0% 100%, 100% 100%);"></div>
+            <div class="obj-btn" onclick="brush='portal'" style="background:#00ff00; width: 20px;"></div>
         </div>
         <div id="delete-content" class="tab-content hidden">
-            <span style="color: #f44;">Click objects to remove them</span>
+            <span style="color: #ff4d4d; font-weight: bold;">ERASER MODE: CLICK OBJECTS TO REMOVE</span>
         </div>
     </div>
 
@@ -79,25 +72,27 @@ const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = 500;
 
-// Engine State
+// Game Config
 let state = 'MENU';
 let brush = 'block';
 let currentTab = 'build';
 let currentLevel = [];
 let cameraX = 0;
 let isPaused = false;
+let isDead = false;
 
-// Physics
 const GROUND_Y = 400;
-let player = { x: 100, y: GROUND_Y - 30, w: 30, h: 30, dy: 0, mode: 'cube' };
+const GRAVITY = 0.7;
+const SHIP_GRAVITY = 0.3;
 
-// --- UI Logic ---
+let player = { x: 100, y: GROUND_Y - 30, w: 30, h: 30, dy: 0, mode: 'cube', rot: 0 };
+
+// --- Tab Logic ---
 function switchTab(t) {
     currentTab = t;
-    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-    event.target.classList.add('active');
+    document.getElementById('tab-build').classList.toggle('active', t === 'build');
+    document.getElementById('tab-delete').classList.toggle('active', t === 'delete');
     document.getElementById('build-content').classList.toggle('hidden', t !== 'build');
-    document.getElementById('edit-content').classList.toggle('hidden', t !== 'edit');
     document.getElementById('delete-content').classList.toggle('hidden', t !== 'delete');
 }
 
@@ -106,72 +101,73 @@ function togglePause(show) {
     document.getElementById('pause-menu').classList.toggle('hidden', !show);
 }
 
-// --- Level IO ---
+// --- Level System ---
 function saveAndUpload() {
     const name = document.getElementById('lvl-name').value || "Unnamed";
-    const id = document.getElementById('lvl-id').value || "0";
+    const id = parseInt(document.getElementById('lvl-id').value) || Date.now();
     
-    const levelData = {
-        name: name,
-        id: id,
-        data: currentLevel
-    };
-
+    const levelData = { name, id, data: currentLevel };
     let levels = JSON.parse(localStorage.getItem('gd_cloud') || "[]");
-    levels.push(levelData);
-    localStorage.setItem('gd_cloud', JSON.stringify(levels));
     
-    alert(`Level ${name}.gdlvl saved!`);
+    // Replace if ID exists, otherwise add
+    const index = levels.findIndex(l => l.id === id);
+    if(index > -1) levels[index] = levelData;
+    else levels.push(levelData);
+
+    levels.sort((a,b) => a.id - b.id);
+    localStorage.setItem('gd_cloud', JSON.stringify(levels));
     location.reload();
 }
 
 function loadSender() {
     const container = document.getElementById('level-sender');
     const levels = JSON.parse(localStorage.getItem('gd_cloud') || "[]");
-    container.innerHTML = levels.length ? '' : '<p>No levels uploaded yet.</p>';
+    container.innerHTML = levels.length ? '' : '<p style="opacity:0.5">No levels found. Go to Editor!</p>';
     
-    levels.forEach((l, index) => {
+    levels.forEach(l => {
         const div = document.createElement('div');
         div.className = 'lvl-item';
-        div.innerHTML = `<span>#${l.id} - ${l.name}</span> <button class="btn">Play</button>`;
+        div.innerHTML = `<span><b>#${l.id}</b> ${l.name}</span> <button class="btn btn-green">PLAY</button>`;
         div.onclick = () => startPlay(l.data);
         container.appendChild(div);
     });
 }
 
 // --- Interaction ---
-canvas.addEventListener('mousedown', (e) => {
-    if (isPaused) return;
-    
-    const x = e.clientX + cameraX;
-    const y = e.clientY;
-
-    if (state === 'EDIT') {
-        if (currentTab === 'build') {
-            const gx = Math.floor(x / 40) * 40;
-            const gy = Math.floor(y / 40) * 40;
-            currentLevel.push({ x: gx, y: gy, type: brush });
-        } else if (currentTab === 'delete') {
-            currentLevel = currentLevel.filter(o => !(x > o.x && x < o.x + 40 && y > o.y && y < o.y + 40));
-        }
-    } else if (state === 'PLAY') {
-        if (player.y >= GROUND_Y - player.h || player.mode === 'ship') {
+window.addEventListener('mousedown', () => {
+    if (isPaused || isDead) return;
+    if (state === 'PLAY') {
+        if (player.y >= GROUND_Y - player.h || player.mode === 'ship' || player.onObject) {
             player.dy = player.mode === 'cube' ? -12 : -6;
         }
     }
 });
 
-// Camera movement in Editor
-window.addEventListener('keydown', (e) => {
-    if (state === 'EDIT') {
-        if (e.key === 'ArrowRight') cameraX += 40;
-        if (e.key === 'ArrowLeft') cameraX -= 40;
+canvas.addEventListener('click', (e) => {
+    if (state !== 'EDIT' || isPaused) return;
+    const x = e.clientX + cameraX;
+    const y = e.clientY;
+    const gx = Math.floor(x / 40) * 40;
+    const gy = Math.floor(y / 40) * 40;
+
+    if (currentTab === 'build') {
+        currentLevel.push({ x: gx, y: gy, type: brush });
+    } else {
+        currentLevel = currentLevel.filter(o => !(gx === o.x && gy === o.y));
     }
 });
 
-// --- Core Loop ---
+window.addEventListener('keydown', (e) => {
+    if (state === 'EDIT') {
+        if (e.key === 'ArrowRight') cameraX += 120;
+        if (e.key === 'ArrowLeft') cameraX = Math.max(0, cameraX - 120);
+    }
+});
+
+// --- Core Engine ---
 function initEditor() {
     state = 'EDIT';
+    currentLevel = [];
     document.getElementById('main-menu').classList.add('hidden');
     document.getElementById('editor-gui').classList.remove('hidden');
     document.getElementById('pause-trigger').classList.remove('hidden');
@@ -179,71 +175,102 @@ function initEditor() {
 
 function startPlay(data) {
     state = 'PLAY';
+    isDead = false;
     currentLevel = data;
-    player = { x: 100, y: GROUND_Y - 30, w: 30, h: 30, dy: 0, mode: 'cube' };
+    player = { x: 100, y: GROUND_Y - 30, w: 30, h: 30, dy: 0, mode: 'cube', rot: 0 };
     cameraX = 0;
     document.getElementById('main-menu').classList.add('hidden');
 }
 
-function draw() {
+function handleDeath() {
+    if (isDead) return;
+    isDead = true;
+    setTimeout(() => startPlay(currentLevel), 1000);
+}
+
+function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Background parallax-ish
-    ctx.fillStyle = '#222';
-    ctx.fillRect(0, GROUND_Y, canvas.width, 200);
+    // Ground
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, GROUND_Y, canvas.width, 100);
+    ctx.strokeStyle = '#00fbff';
+    ctx.beginPath(); ctx.moveTo(0, GROUND_Y); ctx.lineTo(canvas.width, GROUND_Y); ctx.stroke();
 
     if (state !== 'MENU') {
-        if (state === 'PLAY' && !isPaused) {
-            player.dy += (player.mode === 'cube' ? 0.7 : 0.3);
+        if (state === 'PLAY' && !isPaused && !isDead) {
+            player.dy += (player.mode === 'cube' ? GRAVITY : SHIP_GRAVITY);
             player.y += player.dy;
             player.x += 6;
             cameraX = player.x - 150;
+            player.onObject = false;
 
+            // Floor Collision
             if (player.y > GROUND_Y - player.h) {
                 player.y = GROUND_Y - player.h;
                 player.dy = 0;
             }
+
+            // Object Physics & Collision
+            currentLevel.forEach(o => {
+                const pL = player.x, pR = player.x + 30, pT = player.y, pB = player.y + 30;
+                const oL = o.x, oR = o.x + 40, oT = o.y, oB = o.y + 40;
+
+                if (pR > oL && pL < oR && pB > oT && pT < oB) {
+                    if (o.type === 'block') {
+                        // Land on top
+                        if (pB > oT && player.dy >= 0 && pT < oT) {
+                            player.y = oT - 30;
+                            player.dy = 0;
+                            player.onObject = true;
+                        } else if (pR > oL && pL < oL + 10) { 
+                            handleDeath(); // Hit side
+                        }
+                    } else if (o.type === 'spike') {
+                        handleDeath();
+                    } else if (o.type === 'portal') {
+                        player.mode = 'ship';
+                    }
+                }
+            });
         }
 
         // Draw Player
-        ctx.fillStyle = player.mode === 'cube' ? '#00fbff' : '#ff00ff';
-        ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
+        if (!isDead) {
+            ctx.save();
+            ctx.translate(player.x - cameraX + 15, player.y + 15);
+            if(player.mode === 'cube' && player.dy !== 0) player.rot += 5;
+            else if(player.mode === 'cube') player.rot = Math.round(player.rot/90)*90;
+            ctx.rotate(player.rot * Math.PI / 180);
+            ctx.fillStyle = player.mode === 'cube' ? '#00fbff' : '#ff00ff';
+            ctx.fillRect(-15, -15, 30, 30);
+            ctx.strokeStyle = 'white'; ctx.strokeRect(-15, -15, 30, 30);
+            ctx.restore();
+        }
 
-        // Draw Objects
+        // Draw Level
         currentLevel.forEach(o => {
             const sx = o.x - cameraX;
+            if (sx < -50 || sx > canvas.width + 50) return;
+
             if (o.type === 'block') {
-                ctx.fillStyle = '#555';
+                ctx.fillStyle = '#333';
                 ctx.fillRect(sx, o.y, 40, 40);
-                ctx.strokeStyle = '#fff';
-                ctx.strokeRect(sx, o.y, 40, 40);
+                ctx.strokeStyle = '#666'; ctx.strokeRect(sx, o.y, 40, 40);
             } else if (o.type === 'spike') {
                 ctx.fillStyle = '#ff4d4d';
-                ctx.beginPath();
-                ctx.moveTo(sx, o.y + 40);
-                ctx.lineTo(sx + 20, o.y);
-                ctx.lineTo(sx + 40, o.y + 40);
-                ctx.fill();
+                ctx.beginPath(); ctx.moveTo(sx, o.y+40); ctx.lineTo(sx+20, o.y); ctx.lineTo(sx+40, o.y+40); ctx.fill();
             } else if (o.type === 'portal') {
-                ctx.fillStyle = '#00ff00';
-                ctx.fillRect(sx, o.y, 15, 80);
-                if (state === 'PLAY' && player.x + 30 > o.x && player.x < o.x + 15) player.mode = 'ship';
-            }
-            
-            // Death Check
-            if (state === 'PLAY' && o.type !== 'portal') {
-                if (player.x < o.x + 35 && player.x + 25 > o.x && player.y < o.y + 35 && player.y + 25 > o.y) {
-                    startPlay(currentLevel); 
-                }
+                ctx.fillStyle = '#00ff00'; ctx.fillRect(sx, o.y, 10, 80);
             }
         });
     }
 
-    requestAnimationFrame(draw);
+    requestAnimationFrame(update);
 }
 
 loadSender();
-draw();
+update();
 </script>
 </body>
 </html>
