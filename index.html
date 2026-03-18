@@ -2,34 +2,72 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>GD Knockoff Engine</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GD Engine</title>
     <style>
-        body { margin: 0; background: #1a1a1a; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        canvas { display: block; background: #222; border-bottom: 4px solid #333; cursor: crosshair; }
-        #ui-overlay { position: absolute; top: 10px; left: 10px; pointer-events: none; }
-        .menu-btn { padding: 10px 20px; background: #444; color: white; border: none; cursor: pointer; margin: 5px; pointer-events: auto; }
-        .menu-btn:hover { background: #666; }
-        #editor-panel { position: absolute; bottom: 60px; left: 10px; background: rgba(0,0,0,0.8); padding: 10px; display: none; }
-        #main-menu { position: absolute; inset: 0; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
-        .level-card { width: 300px; padding: 15px; background: #333; margin: 5px; text-align: center; border-radius: 5px; cursor: pointer; }
+        body { margin: 0; background: #0a0a0a; color: white; font-family: 'Segoe UI', Tahoma, sans-serif; overflow: hidden; user-select: none; }
+        canvas { display: block; background: #111; border-bottom: 4px solid #222; }
+        
+        /* Main Menus */
+        .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); z-index: 100; }
+        .hidden { display: none !important; }
+        
+        /* Level List Styles */
+        #level-sender { width: 400px; height: 300px; overflow-y: auto; background: #222; padding: 20px; border: 2px solid #444; }
+        .lvl-item { background: #333; padding: 10px; margin-bottom: 5px; cursor: pointer; display: flex; justify-content: space-between; }
+        .lvl-item:hover { background: #444; }
+
+        /* Editor Tabs */
+        #editor-gui { position: absolute; bottom: 0; left: 0; right: 0; height: 120px; background: rgba(20,20,20,0.9); display: flex; flex-direction: column; border-top: 2px solid #555; }
+        .tabs { display: flex; background: #111; }
+        .tab { padding: 8px 20px; cursor: pointer; background: #222; border: 1px solid #333; }
+        .tab.active { background: #444; border-bottom: none; }
+        .tab-content { flex: 1; display: flex; align-items: center; padding: 10px; gap: 10px; }
+        
+        /* Buttons */
+        .btn { padding: 10px 15px; background: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; }
+        .btn-pause { position: absolute; top: 10px; right: 10px; }
+        .btn-blue { background: #007bff; }
+        .obj-btn { width: 40px; height: 40px; background: #444; border: 1px solid #666; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="main-menu">
-        <h1>JS DASH</h1>
-        <div id="level-list"></div>
-        <button class="menu-btn" onclick="openEditor()">Level Editor</button>
+    <div id="main-menu" class="overlay">
+        <h1>GEOMETRY DASH CLONE</h1>
+        <div id="level-sender"></div>
+        <div style="margin-top: 20px;">
+            <button class="btn btn-blue" onclick="initEditor()">Create New Level</button>
+        </div>
     </div>
 
-    <div id="ui-overlay">
-        <div id="stats">Score: 0</div>
-        <button class="menu-btn" onclick="returnToMenu()">Menu</button>
-        <div id="editor-panel">
-            <button class="menu-btn" onclick="currentBrush = 'block'">Block</button>
-            <button class="menu-btn" onclick="currentBrush = 'spike'">Spike</button>
-            <button class="menu-btn" onclick="currentBrush = 'portal'">Ship Portal</button>
-            <button class="menu-btn" onclick="saveLevel()">Save & Upload (ID)</button>
+    <div id="pause-menu" class="overlay hidden">
+        <h2>Editor Paused</h2>
+        <input type="text" id="lvl-name" placeholder="Level Name" style="padding: 10px; margin: 10px;">
+        <input type="number" id="lvl-id" placeholder="Level ID" style="padding: 10px; margin: 10px;">
+        <button class="btn" onclick="saveAndUpload()">Save & Upload (.gdlvl)</button>
+        <button class="btn btn-blue" style="margin-top: 10px;" onclick="togglePause(false)">Resume</button>
+        <button class="btn" style="background: #dc3545; margin-top: 10px;" onclick="location.reload()">Exit to Menu</button>
+    </div>
+
+    <button id="pause-trigger" class="btn btn-pause hidden" onclick="togglePause(true)">II</button>
+
+    <div id="editor-gui" class="hidden">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('build')">Build</div>
+            <div class="tab" onclick="switchTab('edit')">Edit</div>
+            <div class="tab" onclick="switchTab('delete')">Delete</div>
+        </div>
+        <div id="build-content" class="tab-content">
+            <button class="obj-btn" onclick="brush='block'" style="background:#aaa;"></button>
+            <button class="obj-btn" onclick="brush='spike'" style="background:#f44; clip-path: polygon(50% 0%, 0% 100%, 100% 100%);"></button>
+            <button class="obj-btn" onclick="brush='portal'" style="background:#0f0;"></button>
+        </div>
+        <div id="edit-content" class="tab-content hidden">
+            <span>Select an object to move it (WIP)</span>
+        </div>
+        <div id="delete-content" class="tab-content hidden">
+            <span style="color: #f44;">Click objects to remove them</span>
         </div>
     </div>
 
@@ -39,105 +77,127 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
-canvas.height = 400;
+canvas.height = 500;
 
-// Game State
-let mode = 'MENU'; // MENU, PLAY, EDIT
+// Engine State
+let state = 'MENU';
+let brush = 'block';
+let currentTab = 'build';
 let currentLevel = [];
-let currentBrush = 'block';
-const GRAVITY = 0.6;
-const SHIP_GRAVITY = 0.3;
-const GROUND_Y = 350;
+let cameraX = 0;
+let isPaused = false;
 
-let player = { x: 50, y: 0, w: 30, h: 30, dy: 0, mode: 'cube', rot: 0 };
-let camX = 0;
+// Physics
+const GROUND_Y = 400;
+let player = { x: 100, y: GROUND_Y - 30, w: 30, h: 30, dy: 0, mode: 'cube' };
 
-// --- Level Storage Logic ---
-function saveLevel() {
-    const id = prompt("Enter Level ID (Number):", "1");
-    if(!id) return;
-    
-    let levels = JSON.parse(localStorage.getItem('gd_levels') || "{}");
-    levels[id] = currentLevel;
-    localStorage.setItem('gd_levels', JSON.stringify(levels));
-    alert("Level Uploaded to Database!");
-    returnToMenu();
+// --- UI Logic ---
+function switchTab(t) {
+    currentTab = t;
+    document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('build-content').classList.toggle('hidden', t !== 'build');
+    document.getElementById('edit-content').classList.toggle('hidden', t !== 'edit');
+    document.getElementById('delete-content').classList.toggle('hidden', t !== 'delete');
 }
 
-function loadLevelList() {
-    const list = document.getElementById('level-list');
-    list.innerHTML = '';
-    const levels = JSON.parse(localStorage.getItem('gd_levels') || "{}");
+function togglePause(show) {
+    isPaused = show;
+    document.getElementById('pause-menu').classList.toggle('hidden', !show);
+}
+
+// --- Level IO ---
+function saveAndUpload() {
+    const name = document.getElementById('lvl-name').value || "Unnamed";
+    const id = document.getElementById('lvl-id').value || "0";
     
-    // Sort levels by ID number
-    Object.keys(levels).sort((a,b) => a-b).forEach(id => {
+    const levelData = {
+        name: name,
+        id: id,
+        data: currentLevel
+    };
+
+    let levels = JSON.parse(localStorage.getItem('gd_cloud') || "[]");
+    levels.push(levelData);
+    localStorage.setItem('gd_cloud', JSON.stringify(levels));
+    
+    alert(`Level ${name}.gdlvl saved!`);
+    location.reload();
+}
+
+function loadSender() {
+    const container = document.getElementById('level-sender');
+    const levels = JSON.parse(localStorage.getItem('gd_cloud') || "[]");
+    container.innerHTML = levels.length ? '' : '<p>No levels uploaded yet.</p>';
+    
+    levels.forEach((l, index) => {
         const div = document.createElement('div');
-        div.className = 'level-card';
-        div.innerText = `Level ${id}`;
-        div.onclick = () => startLevel(levels[id]);
-        list.appendChild(div);
+        div.className = 'lvl-item';
+        div.innerHTML = `<span>#${l.id} - ${l.name}</span> <button class="btn">Play</button>`;
+        div.onclick = () => startPlay(l.data);
+        container.appendChild(div);
     });
-}
-
-// --- Engine Core ---
-function startLevel(levelData) {
-    currentLevel = levelData;
-    player.x = 50; player.y = GROUND_Y - 30; player.dy = 0; player.mode = 'cube';
-    camX = 0;
-    mode = 'PLAY';
-    document.getElementById('main-menu').style.display = 'none';
-}
-
-function openEditor() {
-    mode = 'EDIT';
-    currentLevel = [];
-    document.getElementById('main-menu').style.display = 'none';
-    document.getElementById('editor-panel').style.display = 'block';
-}
-
-function returnToMenu() {
-    mode = 'MENU';
-    document.getElementById('main-menu').style.display = 'flex';
-    document.getElementById('editor-panel').style.display = 'none';
-    loadLevelList();
 }
 
 // --- Interaction ---
 canvas.addEventListener('mousedown', (e) => {
-    if (mode !== 'EDIT') {
-        if(player.mode === 'cube') {
-            if (player.y >= GROUND_Y - player.h) player.dy = -12;
-        } else {
-            player.dy = -6; // Ship Fly
+    if (isPaused) return;
+    
+    const x = e.clientX + cameraX;
+    const y = e.clientY;
+
+    if (state === 'EDIT') {
+        if (currentTab === 'build') {
+            const gx = Math.floor(x / 40) * 40;
+            const gy = Math.floor(y / 40) * 40;
+            currentLevel.push({ x: gx, y: gy, type: brush });
+        } else if (currentTab === 'delete') {
+            currentLevel = currentLevel.filter(o => !(x > o.x && x < o.x + 40 && y > o.y && y < o.y + 40));
         }
-        return;
+    } else if (state === 'PLAY') {
+        if (player.y >= GROUND_Y - player.h || player.mode === 'ship') {
+            player.dy = player.mode === 'cube' ? -12 : -6;
+        }
     }
-    // Editor Placement
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left + camX;
-    const clickY = e.clientY - rect.top;
-    const gridX = Math.floor(clickX / 40) * 40;
-    const gridY = Math.floor(clickY / 40) * 40;
-    currentLevel.push({ x: gridX, y: gridY, type: currentBrush });
 });
 
-// --- Main Loop ---
-function update() {
+// Camera movement in Editor
+window.addEventListener('keydown', (e) => {
+    if (state === 'EDIT') {
+        if (e.key === 'ArrowRight') cameraX += 40;
+        if (e.key === 'ArrowLeft') cameraX -= 40;
+    }
+});
+
+// --- Core Loop ---
+function initEditor() {
+    state = 'EDIT';
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('editor-gui').classList.remove('hidden');
+    document.getElementById('pause-trigger').classList.remove('hidden');
+}
+
+function startPlay(data) {
+    state = 'PLAY';
+    currentLevel = data;
+    player = { x: 100, y: GROUND_Y - 30, w: 30, h: 30, dy: 0, mode: 'cube' };
+    cameraX = 0;
+    document.getElementById('main-menu').classList.add('hidden');
+}
+
+function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw Ground
-    ctx.fillStyle = '#333';
-    ctx.fillRect(0, GROUND_Y, canvas.width, 100);
+    // Background parallax-ish
+    ctx.fillStyle = '#222';
+    ctx.fillRect(0, GROUND_Y, canvas.width, 200);
 
-    if (mode === 'PLAY' || mode === 'EDIT') {
-        if (mode === 'PLAY') {
-            camX += 5;
-            player.x += 5;
-
-            // Physics
-            let g = player.mode === 'cube' ? GRAVITY : SHIP_GRAVITY;
-            player.dy += g;
+    if (state !== 'MENU') {
+        if (state === 'PLAY' && !isPaused) {
+            player.dy += (player.mode === 'cube' ? 0.7 : 0.3);
             player.y += player.dy;
+            player.x += 6;
+            cameraX = player.x - 150;
 
             if (player.y > GROUND_Y - player.h) {
                 player.y = GROUND_Y - player.h;
@@ -146,48 +206,44 @@ function update() {
         }
 
         // Draw Player
-        ctx.save();
-        ctx.translate(player.x - camX + 15, player.y + 15);
-        if(player.mode === 'cube') ctx.rotate((player.x % 360) * Math.PI / 180);
-        ctx.fillStyle = player.mode === 'cube' ? '#00f' : '#f0f';
-        ctx.fillRect(-15, -15, 30, 30);
-        ctx.restore();
+        ctx.fillStyle = player.mode === 'cube' ? '#00fbff' : '#ff00ff';
+        ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
 
-        // Draw Level Objects
-        currentLevel.forEach(obj => {
-            const screenX = obj.x - camX;
-            if (obj.type === 'block') {
-                ctx.fillStyle = '#aaa';
-                ctx.fillRect(screenX, obj.y, 40, 40);
-                checkCollision(obj);
-            } else if (obj.type === 'spike') {
-                ctx.fillStyle = '#f44';
+        // Draw Objects
+        currentLevel.forEach(o => {
+            const sx = o.x - cameraX;
+            if (o.type === 'block') {
+                ctx.fillStyle = '#555';
+                ctx.fillRect(sx, o.y, 40, 40);
+                ctx.strokeStyle = '#fff';
+                ctx.strokeRect(sx, o.y, 40, 40);
+            } else if (o.type === 'spike') {
+                ctx.fillStyle = '#ff4d4d';
                 ctx.beginPath();
-                ctx.moveTo(screenX, obj.y + 40);
-                ctx.lineTo(screenX + 20, obj.y);
-                ctx.lineTo(screenX + 40, obj.y + 40);
+                ctx.moveTo(sx, o.y + 40);
+                ctx.lineTo(sx + 20, o.y);
+                ctx.lineTo(sx + 40, o.y + 40);
                 ctx.fill();
-                checkCollision(obj);
-            } else if (obj.type === 'portal') {
-                ctx.fillStyle = '#0f0';
-                ctx.fillRect(screenX, obj.y, 20, 80);
-                if (mode === 'PLAY' && player.x > obj.x && player.x < obj.x + 20) player.mode = 'ship';
+            } else if (o.type === 'portal') {
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(sx, o.y, 15, 80);
+                if (state === 'PLAY' && player.x + 30 > o.x && player.x < o.x + 15) player.mode = 'ship';
+            }
+            
+            // Death Check
+            if (state === 'PLAY' && o.type !== 'portal') {
+                if (player.x < o.x + 35 && player.x + 25 > o.x && player.y < o.y + 35 && player.y + 25 > o.y) {
+                    startPlay(currentLevel); 
+                }
             }
         });
     }
-    requestAnimationFrame(update);
+
+    requestAnimationFrame(draw);
 }
 
-function checkCollision(obj) {
-    if (mode !== 'PLAY') return;
-    if (player.x < obj.x + 30 && player.x + 30 > obj.x &&
-        player.y < obj.y + 30 && player.y + 30 > obj.y) {
-        startLevel(currentLevel); // Reset on death
-    }
-}
-
-loadLevelList();
-update();
+loadSender();
+draw();
 </script>
 </body>
 </html>
